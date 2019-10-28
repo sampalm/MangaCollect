@@ -10,12 +10,13 @@ import (
 	"strings"
 	"unicode"
 
-	sorter "github.com/sampalm/comicJoin/sort"
-	"github.com/sampalm/comicJoin/worker"
+	sorter "github.com/sampalm/MangaCollect/sort"
+	"github.com/sampalm/MangaCollect/worker"
 )
 
 var dirname string
 var ffolder string
+var defaultFolter = "_volumes"
 
 func init() {
 	if len(os.Args) < 2 {
@@ -64,7 +65,7 @@ func main() {
 	for _, file := range files {
 
 		// This is the default folder to save files
-		if file.Name() == "Volumes" {
+		if file.Name() == defaultFolter {
 			continue
 		}
 		reg := regexp.MustCompile(`^((Vol|vol|volume|Volume)(.|)[0-9]+)`).FindString(file.Name())
@@ -85,7 +86,7 @@ func main() {
 	}
 	fmt.Printf("::: Working in %s now :::\n", ffolder)
 
-	volpath := filepath.Join(dirname, "Volumes")
+	volpath := filepath.Join(dirname, defaultFolter)
 	if _, err := os.Stat(volpath); os.IsNotExist(err) {
 		err := os.MkdirAll(volpath, 555)
 		if err != nil {
@@ -95,7 +96,7 @@ func main() {
 
 	for vol, files := range counter {
 		fmt.Printf("::: Creating %s :::\n", vol)
-		if err := worker.CompressFiles(filepath.Join(dirname, "Volumes", ffolder+" "+vol+".zip"), files); err != nil {
+		if err := worker.CompressFiles(filepath.Join(dirname, defaultFolter, ffolder+" "+vol+".zip"), files); err != nil {
 			log.Println(err)
 		}
 	}

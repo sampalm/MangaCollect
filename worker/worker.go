@@ -62,7 +62,6 @@ func compress(zipWriter *zip.Writer, source string) error {
 		if err != nil {
 			return err
 		}
-		//log.Printf(":: Compressing files %s - %s\n", filepath.Base(source), info.Name())
 		_, err = io.Copy(writer, fileToZip)
 		return err
 
@@ -72,6 +71,11 @@ func compress(zipWriter *zip.Writer, source string) error {
 
 func ReadPath(path string) []os.FileInfo {
 	list, err := ioutil.ReadDir(path)
+	for i, f := range list {
+		if !f.IsDir() {
+			list = append(list[:i], list[i+1:]...)
+		}
+	}
 	if err != nil {
 		log.Fatal(err)
 	}

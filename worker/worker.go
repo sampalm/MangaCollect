@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -69,15 +70,38 @@ func compress(zipWriter *zip.Writer, source string) error {
 
 }
 
-func ReadPath(path string) []os.FileInfo {
+func ReadPath(path, ignore string) []os.FileInfo {
+	var templ []os.FileInfo
 	list, err := ioutil.ReadDir(path)
-	for i, f := range list {
+	for _, f := range list {
 		if !f.IsDir() {
-			list = append(list[:i], list[i+1:]...)
+			continue
 		}
+		if f.Name() == ignore {
+			continue
+		}
+		templ = append(templ, f)
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	return list
+	return templ
+}
+
+func GetLastChapter(path string) (string, error) {
+	fl, err := zip.OpenReader(path)
+	if err != nil {
+		return "", err
+	}
+	defer fl.Close()
+
+	if len(fl.File) < 1 {
+		return "", err
+	}
+	cat := strings.Split(fl.File[len(fl.File)-1].Name, "/")
+	if len(cat) < 1 {
+		return "", fmt.Errorf("GetLastChapter: filepath not found")
+	}
+
+	return cat[0], nil
 }

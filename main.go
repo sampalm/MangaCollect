@@ -16,6 +16,9 @@ import (
 
 var dirname string
 var ffolder string
+var vfolder string
+var lcap float64
+var lvol float64
 var defaultFolter = "_volumes"
 
 func init() {
@@ -24,14 +27,42 @@ func init() {
 	}
 	dirname = os.Args[1]
 	ffolder = filepath.Base(dirname)
+	vfolder = filepath.Join(dirname, defaultFolter)
 }
 
 func main() {
+	fmt.Println("::: Checking existence of volumes :::")
+	if _, err := os.Stat(vfolder); err == nil {
+
+		list, err := filepath.Glob(vfolder + "/*.zip") // returns a list of files
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for i, l := range list {
+			list[i] = filepath.Base(l)
+		}
+
+		sort.Slice(list,
+			func(i, j int) bool {
+				return sorter.GetNumber(list[i]) < sorter.GetNumber(list[j])
+			},
+		)
+
+		cpt, err := worker.GetLastChapter(filepath.Join(vfolder, list[len(list)-1]))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		lvol = sorter.GetNumber(list[len(list)-1])
+		lcap = sorter.GetNumber(cpt)
+		fmt.Printf("Found: Vol %.1f - Cap %.1f\n", lvol, lcap)
+	}
+
 	fmt.Println("::: Running new task :::")
 
 	if len(os.Args) > 2 {
 		if os.Args[2] == "reset" {
-			files := worker.ReadPath(dirname)
+			files := worker.ReadPath(dirname, defaultFolter)
 			for _, file := range files {
 				reg := regexp.MustCompile(`^((Vol|vol|volume|Volume)(.|)[0-9]+)`).FindString(file.Name())
 				if reg != "" {
@@ -49,24 +80,30 @@ func main() {
 		}
 	}
 
-	files := worker.ReadPath(dirname)
+	mangafl := worker.ReadPath(dirname, defaultFolter)
 	// manga volume counter
 	ct := 0
 	tt := 1
+	if lvol > 0 {
+		tt = int(lvol) + 1
+	}
 
-	sort.Slice(files,
+	sort.Slice(mangafl,
 		func(i, j int) bool {
-			return sorter.GetNumber(files[i].Name()) < sorter.GetNumber(files[j].Name())
+			return sorter.GetNumber(mangafl[i].Name()) < sorter.GetNumber(mangafl[j].Name())
 		},
 	)
 
 	counter := make(map[string][]string, 0)
-
-	for _, file := range files {
-
+	for _, file := range mangafl {
 		// This is the default folder to save files
 		if file.Name() == defaultFolter {
 			continue
+		}
+		if lcap > 0 {
+			if sorter.GetNumber(file.Name()) <= lcap {
+				continue
+			}
 		}
 		reg := regexp.MustCompile(`^((Vol|vol|volume|Volume)(.|)[0-9]+)`).FindString(file.Name())
 		if reg == "" {
@@ -86,9 +123,8 @@ func main() {
 	}
 	fmt.Printf("::: Working in %s now :::\n", ffolder)
 
-	volpath := filepath.Join(dirname, defaultFolter)
-	if _, err := os.Stat(volpath); os.IsNotExist(err) {
-		err := os.MkdirAll(volpath, 555)
+	if _, err := os.Stat(vfolder); os.IsNotExist(err) {
+		err := os.MkdirAll(vfolder, 555)
 		if err != nil {
 			log.Fatalln(err)
 		}
